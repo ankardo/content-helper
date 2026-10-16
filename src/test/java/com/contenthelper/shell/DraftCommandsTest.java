@@ -34,13 +34,13 @@ class DraftCommandsTest {
 
   @Test
   void missingInputsReturnsUsage(@TempDir Path base) throws Exception {
-    String out = canned().draft(null, null, ".", base.toString(), false);
+    String out = canned().draft(null, null, null, ".", base.toString(), false);
     assertThat(out).contains("--notes");
   }
 
   @Test
   void notesInputWritesThreeFiles(@TempDir Path base) throws Exception {
-    String out = canned().draft("Shipped it.", null, ".", base.toString(), false);
+    String out = canned().draft("Shipped it.", null, null, ".", base.toString(), false);
     assertThat(out).startsWith("Wrote 3 drafts to");
     try (var paths = Files.list(base)) {
       assertThat(paths.toList()).hasSize(1);
@@ -48,8 +48,28 @@ class DraftCommandsTest {
   }
 
   @Test
+  void notesFileKeepsSentencesWhole(@TempDir Path base) throws Exception {
+    Path notes = base.resolve("notes.txt");
+    Files.writeString(notes, "alpha bravo charlie delta");
+    String out = canned().draft(null, notes.toString(), null, ".", base.resolve("out").toString(), false);
+    assertThat(out).startsWith("Wrote 3 drafts to");
+    try (var slugs = Files.list(base.resolve("out"))) {
+      Path slug = slugs.toList().get(0);
+      assertThat(Files.readString(slug.resolve("linkedin.md")))
+          .contains("alpha bravo charlie delta");
+    }
+  }
+
+  @Test
+  void missingNotesFileExplainsItself(@TempDir Path base) throws Exception {
+    String out =
+        canned().draft(null, base.resolve("nope.txt").toString(), null, ".", base.toString(), false);
+    assertThat(out).startsWith("Cannot read notes file");
+  }
+
+  @Test
   void aiPathUsesModel(@TempDir Path base) throws Exception {
-    String out = wired("model words").draft("Shipped it.", null, ".", base.toString(), true);
+    String out = wired("model words").draft("Shipped it.", null, null, ".", base.toString(), true);
     assertThat(out).startsWith("Wrote 3 drafts to");
     try (var slugs = Files.list(base)) {
       Path slug = slugs.toList().get(0);
@@ -70,7 +90,7 @@ class DraftCommandsTest {
             new DraftWriter(),
             new GitLogReader(),
             new DraftGenerator(builder));
-    String out = commands.draft("Shipped it.", null, ".", base.toString(), true);
+    String out = commands.draft("Shipped it.", null, null, ".", base.toString(), true);
     assertThat(out).contains("canned drafts");
   }
 }
