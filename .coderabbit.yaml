@@ -1,0 +1,20 @@
+# CodeRabbit config for content-helper (public repo, OSS plan).
+# Activates on the next pull request after the marketplace install.
+reviews:
+  profile: assertive
+  poem: false
+  high_level_summary: true
+  path_filters:
+    - "!target/**"
+    - "!drafts/**"
+  path_instructions:
+    - path: "**/*.java"
+      instructions: >
+        Prefer modern Java 21 idioms (records, sealed types, pattern matching)
+        where they aid readability. New logic needs unit tests. Keep Spring
+        Shell commands thin; logic lives in services. Flag missing tests on
+        new production code.
+    - path: ".github/workflows/**"
+      instructions: >
+        CI must stay fast and green on every push. Flag unpinned third-party
+        actions.
