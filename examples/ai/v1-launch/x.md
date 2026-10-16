@@ -1,0 +1,1 @@
+I built content-helper v1: a Spring Boot CLI that turns my work notes + git ranges into LinkedIn, X and blog drafts. Local llama-glimmer via LM Studio + Spring AI ChatClient, prompts tuned over 5 rounds. CI green, 13 tests, CodeRabbit on PRs. Manual paste publishing, no APIs.
