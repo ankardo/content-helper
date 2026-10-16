@@ -35,12 +35,23 @@ public class DraftCommands {
   @Command(name = {"draft"}, description = "Draft LinkedIn, X and blog posts from notes or a commit range.")
   public String draft(
       @Option(longName = "notes", defaultValue = "") String notes,
+      @Option(longName = "notes-file", defaultValue = "") String notesFile,
       @Option(longName = "range", defaultValue = "") String range,
       @Option(longName = "dir", defaultValue = ".") String dir,
       @Option(longName = "out", defaultValue = "drafts") String out,
       @Option(longName = "ai", defaultValue = "true") boolean ai) throws Exception {
     String source;
-    if (notes != null && !notes.isBlank()) {
+    if (notesFile != null && !notesFile.isBlank()) {
+      // Full sentences: the shell splits --notes on spaces, a file keeps them whole.
+      try {
+        source = java.nio.file.Files.readString(Path.of(notesFile)).trim();
+      } catch (Exception e) {
+        return "Cannot read notes file " + notesFile + ": " + e.getMessage();
+      }
+      if (source.isBlank()) {
+        return "Notes file " + notesFile + " is empty";
+      }
+    } else if (notes != null && !notes.isBlank()) {
       source = notes;
     } else if (range != null && !range.isBlank()) {
       List<String> lines = git.readLog(Path.of(dir), range);
@@ -49,7 +60,7 @@ public class DraftCommands {
       }
       source = String.join("\n", lines);
     } else {
-      return "Pass --notes \"...\" or --range HEAD~5..HEAD";
+      return "Pass --notes-file <file> (sentences), --notes <words> or --range <git range>";
     }
     String slug = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
     String linkedin;

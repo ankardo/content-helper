@@ -1,0 +1,3 @@
+Built content-helper v1: a Spring Boot CLI that turns work notes and git ranges into LinkedIn, X and blog drafts. Local llama-glimmer model through LM Studio, Spring AI ChatClient, ghostwriter prompts...
+
+Shipped today. Notes below.
