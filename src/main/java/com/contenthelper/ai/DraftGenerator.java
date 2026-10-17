@@ -35,6 +35,13 @@ public class DraftGenerator {
             + "Output only the markdown.");
   }
 
+  /** Blog body only. Front matter is written by code, never by the model. */
+  public String blogBody(String source) {
+    return ask(
+        "Work notes:\n" + source + "\n\nWrite a short blog post in markdown, first person, "
+            + "based on these notes. Output only the markdown body, no front matter.");
+  }
+
   private String ask(String prompt) {
     String out = chat.prompt().system(ROLE).user(prompt).call().content();
     if (out == null || out.isBlank()) {

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.contenthelper.ai.DraftGenerator;
+import com.contenthelper.blog.BlogRepo;
 import com.contenthelper.draft.DraftTemplates;
 import com.contenthelper.draft.DraftWriter;
 import com.contenthelper.git.GitLogReader;
@@ -19,7 +20,8 @@ import org.springframework.ai.chat.client.ChatClient;
 class DraftCommandsTest {
 
   private DraftCommands canned() {
-    return new DraftCommands(new DraftTemplates(), new DraftWriter(), new GitLogReader(), null);
+    return new DraftCommands(
+        new DraftTemplates(), new DraftWriter(), new GitLogReader(), null, new BlogRepo());
   }
 
   private DraftCommands wired(String reply) {
@@ -27,9 +29,17 @@ class DraftCommandsTest {
     ChatClient chat = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     when(builder.build()).thenReturn(chat);
     when(chat.prompt().system(anyString()).user(anyString()).call().content()).thenReturn(reply);
-    DraftGenerator generator = new DraftGenerator(builder);
     return new DraftCommands(
-        new DraftTemplates(), new DraftWriter(), new GitLogReader(), generator);
+        new DraftTemplates(),
+        new DraftWriter(),
+        new GitLogReader(),
+        new DraftGenerator(builder),
+        new BlogRepo());
+  }
+
+  private Path blogRepo(Path base) throws Exception {
+    Files.createDirectories(base.resolve("src/content/blog"));
+    return base;
   }
 
   @Test
@@ -51,7 +61,8 @@ class DraftCommandsTest {
   void notesFileKeepsSentencesWhole(@TempDir Path base) throws Exception {
     Path notes = base.resolve("notes.txt");
     Files.writeString(notes, "alpha bravo charlie delta");
-    String out = canned().draft(null, notes.toString(), null, ".", base.resolve("out").toString(), false);
+    String out =
+        canned().draft(null, notes.toString(), null, ".", base.resolve("out").toString(), false);
     assertThat(out).startsWith("Wrote 3 drafts to");
     try (var slugs = Files.list(base.resolve("out"))) {
       Path slug = slugs.toList().get(0);
@@ -89,8 +100,113 @@ class DraftCommandsTest {
             new DraftTemplates(),
             new DraftWriter(),
             new GitLogReader(),
-            new DraftGenerator(builder));
+            new DraftGenerator(builder),
+            new BlogRepo());
     String out = commands.draft("Shipped it.", null, null, ".", base.toString(), true);
     assertThat(out).contains("canned drafts");
+  }
+
+  @Test
+  void blogWritesToPendingNotToContent(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    String out =
+        canned()
+            .blog(
+                "Some notes to draft from.", null, null, ".", repo.toString(), "My First Post",
+                null, "Java, Astro", null, false);
+    assertThat(out).startsWith("Pending:");
+    Path pending = repo.resolve("src/content/_pending/my-first-post.md");
+    assertThat(pending).exists();
+    String content = Files.readString(pending);
+    assertThat(content).contains("title: \"My First Post\"");
+    assertThat(content).contains("pubDate:");
+    assertThat(content).contains("tags: [\"Java\", \"Astro\"]");
+    try (var names = Files.list(repo.resolve("src/content/blog"))) {
+      assertThat(names.toList()).isEmpty();
+    }
+  }
+
+  @Test
+  void blogWithAiUsesModelBodyOnly(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    String out =
+        wired("A clean markdown body.")
+            .blog("notes", null, null, ".", repo.toString(), "T", null, null, null, true);
+    assertThat(out).startsWith("Pending:");
+    String content = Files.readString(repo.resolve("src/content/_pending/t.md"));
+    assertThat(content).contains("A clean markdown body.");
+    assertThat(content).contains("title: \"T\"");
+  }
+
+  @Test
+  void blogUsesFileHeaderForMetadata(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    Path notes = base.resolve("notes.txt");
+    Files.writeString(
+        notes,
+        "---\ntitle: A Real Title With Spaces\ndescription: A short blurb.\ntags: Java, Astro\nslug: custom-slug\n---\nThe notes body.");
+    String out =
+        canned()
+            .blog(null, notes.toString(), null, ".", repo.toString(), null, null, null, null, false);
+    assertThat(out).startsWith("Pending:");
+    Path pending = repo.resolve("src/content/_pending/custom-slug.md");
+    assertThat(pending).exists();
+    String content = Files.readString(pending);
+    assertThat(content).contains("title: \"A Real Title With Spaces\"");
+    assertThat(content).contains("description: \"A short blurb.\"");
+    assertThat(content).contains("tags: [\"Java\", \"Astro\"]");
+    assertThat(content).contains("The notes body.");
+    assertThat(content).doesNotContain("slug: custom-slug");
+  }
+
+  @Test
+  void blogRefusesDuplicate(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    canned().blog("notes", null, null, ".", repo.toString(), "Twice", null, null, null, false);
+    String out =
+        canned().blog("notes", null, null, ".", repo.toString(), "Twice", null, null, null, false);
+    assertThat(out).contains("Already pending");
+  }
+
+  @Test
+  void approveWithoutGoIsDryRun(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    canned().blog("notes", null, null, ".", repo.toString(), "Hold Me", null, null, null, false);
+    String out = canned().approve(repo.toString(), "hold-me", false);
+    assertThat(out).startsWith("Dry run");
+    assertThat(repo.resolve("src/content/_pending/hold-me.md")).exists();
+    assertThat(repo.resolve("src/content/blog/hold-me.md")).doesNotExist();
+  }
+
+  @Test
+  void approveWithGoPublishes(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    canned().blog("notes", null, null, ".", repo.toString(), "Ship Me", null, null, null, false);
+    String out = canned().approve(repo.toString(), "ship-me", true);
+    assertThat(out).startsWith("Published:");
+    assertThat(repo.resolve("src/content/blog/ship-me.md")).exists();
+    assertThat(repo.resolve("src/content/_pending/ship-me.md")).doesNotExist();
+  }
+
+  @Test
+  void approveRefusesExistingPublished(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    Files.writeString(repo.resolve("src/content/blog/ship-me.md"), "already live");
+    Files.createDirectories(repo.resolve("src/content/_pending"));
+    Files.writeString(repo.resolve("src/content/_pending/ship-me.md"), "new draft");
+    String out = canned().approve(repo.toString(), "ship-me", true);
+    assertThat(out).contains("Already published");
+    assertThat(Files.readString(repo.resolve("src/content/blog/ship-me.md")))
+        .isEqualTo("already live");
+  }
+
+  @Test
+  void pendingListsDrafts(@TempDir Path base) throws Exception {
+    Path repo = blogRepo(base);
+    canned().blog("notes", null, null, ".", repo.toString(), "One", null, null, null, false);
+    canned().blog("notes", null, null, ".", repo.toString(), "Two", null, null, null, false);
+    String out = canned().pending(repo.toString());
+    assertThat(out).contains("one");
+    assertThat(out).contains("two");
   }
 }
