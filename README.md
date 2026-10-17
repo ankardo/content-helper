@@ -8,7 +8,7 @@ no social APIs, nothing leaves your machine unless you paste it.
 
 - Java 21
 - A local OpenAI-compatible server for AI mode, e.g. LM Studio
-  (tested with `meta/llama-glimmer` Q4). Without one, use `--ai=false`
+  (tested with `meta/muse-glimmer` Q4). Without one, use `--ai=false`
   for canned structural drafts.
 
 ## Five minute run
@@ -53,7 +53,7 @@ keeps text whole. The v1 bug behind the mysteriously bad drafts.
 | --- | --- | --- |
 | `spring.ai.openai.base-url` | `http://localhost:1234/v1` | LM Studio server |
 | `spring.ai.openai.api-key` | `noop` | LM Studio takes anything |
-| `spring.ai.openai.chat.options.model` | `meta/llama-glimmer` | Any served model id |
+| `spring.ai.openai.chat.options.model` | `meta/muse-glimmer` | Any served model id |
 | `spring.ai.openai.chat.options.max-completion-tokens` | `2000` | Reasoning models think first, budget room |
 | `spring.ai.openai.chat.options.temperature` | `0.7` | Greedy decoding latches onto misreadings |
 
@@ -69,6 +69,51 @@ no model present.
 
 Feed it real notes. One-word inputs get one-word drafts, and drafts
 always want a human edit before posting.
+
+## Blog handoff
+
+For an Astro blog (like `ankardo/digital-vault`), three verbs hand a
+post over without publishing it until you say so.
+
+```bash
+# 1. Write a post into the blog repo's pending area (Astro ignores it)
+java -jar target/content-helper-0.0.1-SNAPSHOT.jar \
+  blog --notes-file notes.txt --into /path/to/blog \
+  --spring.shell.interactive.enabled=false
+
+# 2. See what is waiting for your go
+java -jar ... pending --into /path/to/blog --spring.shell.interactive.enabled=false
+
+# 3. Publish one, only with an explicit --go
+java -jar ... approve --into /path/to/blog --slug my-post --go \
+  --spring.shell.interactive.enabled=false
+```
+
+- `blog` writes `<blog>/src/content/_pending/<slug>.md`. The Astro
+  loader globs only `src/content/blog`, so pending drafts never build.
+- Front matter (`title`, `description`, `pubDate`, `tags`) is written
+  by code to match the blog schema. The model writes the body only.
+- `approve` moves one file into `src/content/blog/`. Without `--go` it
+  is a dry run, and it never overwrites an existing post.
+- Nothing is committed to the blog repo, and nothing publishes without
+  your explicit go.
+
+The same shell splitting applies to `--title`, so multi-word metadata
+goes in the notes file header, the reliable path:
+
+```markdown
+---
+title: A title with spaces
+description: One line for the preview card.
+tags: Java, Astro
+slug: optional-short-slug
+---
+The notes body starts here and keeps every sentence.
+```
+
+`--title`, `--description`, `--tags`, `--slug` still work for single
+tokens; the header wins for anything with spaces.
+
 
 ## Tests
 
