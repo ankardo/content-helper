@@ -192,6 +192,19 @@ fails on any of them:
   cross-environment spread to gate real regressions without flapping.
   Raise it deliberately when coverage grows.
 
+## Supply chain
+
+- **Dependabot** opens weekly PRs for Maven and GitHub Actions updates.
+- **SBOM**: a CycloneDX SBOM (`target/classes/META-INF/sbom/application.cdx.json`,
+  131 components) is produced by `mvnw package` and both ships inside the
+  jar and is uploaded as a CI artifact.
+- **Vulnerability scan**: `.github/workflows/dependency-check.yml` runs
+  OWASP dependency-check weekly and on demand, off the pull request path so
+  PR feedback stays fast. It reports and does not fail the build
+  (`failBuildOnCVSS=11`). The NVD data directory is cached between runs; set
+  an `NVD_API_KEY` repository secret to make the first update fast, since
+  the NVD API is heavily rate limited without one.
+
 ## License
 
 MIT, see LICENSE.
