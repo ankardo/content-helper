@@ -1,5 +1,8 @@
 package com.contenthelper.ai;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +17,20 @@ public class DraftGenerator {
 
   public DraftGenerator(ChatClient.Builder builder) {
     this.chat = builder.build();
+  }
+
+  /** The three social drafts produced from one input. */
+  public record Drafts(String linkedin, String x, String blog) {}
+
+  /** Runs the three model calls concurrently on virtual threads. */
+  public Drafts generateAll(String source, String slug)
+      throws InterruptedException, ExecutionException {
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      Future<String> linkedin = executor.submit(() -> linkedin(source));
+      Future<String> x = executor.submit(() -> x(source));
+      Future<String> blog = executor.submit(() -> blog(source, slug));
+      return new Drafts(linkedin.get(), x.get(), blog.get());
+    }
   }
 
   public String linkedin(String source) {

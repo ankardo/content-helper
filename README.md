@@ -21,6 +21,8 @@ java -jar target/content-helper-0.0.1-SNAPSHOT.jar \
 ```
 
 This writes `drafts/<timestamp>/linkedin.md`, `x.md` and `blog.md`.
+The three drafts are generated concurrently on virtual threads, so wall
+time is close to the slowest single call instead of their sum.
 
 From a git range instead:
 
