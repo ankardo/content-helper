@@ -10,13 +10,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class DraftWriter {
 
-  public List<Path> write(Path base, String slug, String linkedin, String x, String blog)
-      throws IOException {
-    Path dir = base.resolve(slug);
-    Files.createDirectories(dir);
-    Path a = Files.writeString(dir.resolve("linkedin.md"), linkedin);
-    Path b = Files.writeString(dir.resolve("x.md"), x);
-    Path c = Files.writeString(dir.resolve("blog.md"), blog);
-    return List.of(a, b, c);
-  }
+    public List<Path> write(Path base, String slug, String linkedin, String x, String blog) throws IOException {
+        Path dir = base.resolve(slug);
+        Files.createDirectories(dir);
+        Path a = Files.writeString(dir.resolve("linkedin.md"), linkedin);
+        Path b = Files.writeString(dir.resolve("x.md"), x);
+        Path c = Files.writeString(dir.resolve("blog.md"), blog);
+        return List.of(a, b, c);
+    }
 }

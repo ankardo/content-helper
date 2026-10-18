@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+	<!--
+	  Spring injects shared collaborators (MeterRegistry, DraftWriter, BlogRepo). Storing them in a
+	  bean is the dependency injection contract, not a leak of internal state, so EI_EXPOSE_REP2
+	  does not apply here.
+	-->
+	<Match>
+		<Bug pattern="EI_EXPOSE_REP2" />
+		<Class name="~com\.contenthelper\..*" />
+	</Match>
+</FindBugsFilter>

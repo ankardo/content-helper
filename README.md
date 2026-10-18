@@ -173,6 +173,25 @@ real HTTP path against a local fake model, so neither needs a live one:
 (the outgoing request shape plus the non-200 and malformed-body fallback
 paths). CI runs `mvnw verify` on every push and pull request.
 
+## Build gates
+
+`mvnw verify` is the single entry point and enforces every gate, so CI
+fails on any of them:
+
+- **Formatting** via Spotless with Palantir Java Format. Palantir keeps
+  long string concatenations readable, which google-java-format splits one
+  token per line. Run `mvnw spotless:apply` to fix locally.
+- **Bug finder** via SpotBugs (max effort, medium threshold). The only
+  excluded pattern is `EI_EXPOSE_REP2` on Spring beans, where storing an
+  injected collaborator is the injection contract, not a leak.
+- **Architecture** via ArchUnit: no cycles between the feature packages,
+  `blog` never depends on `shell`, and the shell layer sits on top of the
+  features.
+- **Coverage** via JaCoCo, with a line floor of 80%. Measured coverage is
+  85.7% locally and 84.0% on CI, so the floor sits below the observed
+  cross-environment spread to gate real regressions without flapping.
+  Raise it deliberately when coverage grows.
+
 ## License
 
 MIT, see LICENSE.
