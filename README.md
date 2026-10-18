@@ -206,6 +206,15 @@ fails on any of them:
   on 2026-10-18 flagged 14 advisories in jackson-core and jackson-databind
   2.21.5 and 3.1.5, all with published fixes.
 
+## Docs
+
+- [Architecture Decision Records](docs/adr/): why the model, the input
+  format, the approval gate, the blog handoff, the retry policy, and the
+  vulnerability scanner are the way they are.
+- [Contributing](CONTRIBUTING.md): branch, commit, and pull request
+  conventions.
+- [Security](SECURITY.md): local-first posture and how to report.
+
 ## License
 
 MIT, see LICENSE.
