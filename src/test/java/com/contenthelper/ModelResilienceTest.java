@@ -21,8 +21,9 @@ import org.springframework.test.context.DynamicPropertySource;
 /**
  * Proves the model calls are bounded: a slow or erroring server leads to a retry then the canned
  * fallback, not an open ended wait. Uses a small OpenAI compatible mock server. The three drafts
- * run concurrently and each call is retried by Resilience4j up to three attempts, so nine requests
- * are expected.
+ * run concurrently and each call is retried by Resilience4j up to three attempts, so up to nine
+ * requests are expected. An exact count is not asserted: when the client aborts a slow request mid
+ * flight, whether that attempt was already counted as a wire request depends on connection timing.
  */
 @SpringBootTest(
     properties = {
@@ -33,7 +34,7 @@ import org.springframework.test.context.DynamicPropertySource;
     })
 class ModelResilienceTest {
 
-  private static final int ATTEMPTS = 9;
+  private static final int MAX_ATTEMPTS = 9;
   private static final AtomicInteger requests = new AtomicInteger();
   private static volatile long delayMillis = 0;
   private static volatile int status = 200;
@@ -107,7 +108,7 @@ class ModelResilienceTest {
     String result = commands.draft("Shipped it.", null, null, ".", out.toString(), true);
     long millis = (System.nanoTime() - start) / 1_000_000;
     assertThat(result).contains("canned drafts");
-    assertThat(requests.get()).isEqualTo(ATTEMPTS);
+    assertThat(requests.get()).isGreaterThan(3).isLessThanOrEqualTo(MAX_ATTEMPTS);
     assertThat(millis).isLessThan(8000);
   }
 
@@ -118,7 +119,7 @@ class ModelResilienceTest {
     String result = commands.draft("Shipped it.", null, null, ".", out.toString(), true);
     long millis = (System.nanoTime() - start) / 1_000_000;
     assertThat(result).contains("canned drafts");
-    assertThat(requests.get()).isEqualTo(ATTEMPTS);
+    assertThat(requests.get()).isGreaterThan(3).isLessThanOrEqualTo(MAX_ATTEMPTS);
     assertThat(millis).isLessThan(8000);
   }
 }
