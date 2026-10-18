@@ -192,6 +192,20 @@ fails on any of them:
   cross-environment spread to gate real regressions without flapping.
   Raise it deliberately when coverage grows.
 
+## Supply chain
+
+- **Dependabot** opens weekly PRs for Maven and GitHub Actions updates.
+- **SBOM**: a CycloneDX SBOM (`target/classes/META-INF/sbom/application.cdx.json`,
+  131 components) is produced by `mvnw package` and both ships inside the
+  jar and is uploaded as a CI artifact.
+- **Vulnerability scan**: `.github/workflows/osv-scan.yml` runs OSV-Scanner
+  weekly and on demand, off the pull request path so PR feedback stays
+  fast. It scans the CycloneDX SBOM against the public OSV database
+  (keyless, same NVD-sourced CVE data) and uploads a markdown report. It
+  reports rather than gates; Dependabot opens the fix PRs. The first run
+  on 2026-10-18 flagged 14 advisories in jackson-core and jackson-databind
+  2.21.5 and 3.1.5, all with published fixes.
+
 ## License
 
 MIT, see LICENSE.
