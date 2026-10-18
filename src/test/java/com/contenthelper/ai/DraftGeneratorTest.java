@@ -7,22 +7,25 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 
 class DraftGeneratorTest {
 
+  private final ModelGuard guard = new ModelGuard(Duration.ofSeconds(30), 1, Duration.ZERO);
+
   private DraftGenerator generator(String reply) {
     ChatClient.Builder builder = mock(ChatClient.Builder.class);
     ChatClient chat = mock(ChatClient.class, RETURNS_DEEP_STUBS);
     when(builder.build()).thenReturn(chat);
     when(chat.prompt().system(anyString()).user(anyString()).call().content()).thenReturn(reply);
-    return new DraftGenerator(builder);
+    return new DraftGenerator(builder, guard);
   }
 
   @Test
-  void passesSourceThrough() {
+  void passesSourceThrough() throws Exception {
     DraftGenerator gen = generator("a post");
     assertThat(gen.linkedin("my work")).isEqualTo("a post");
     assertThat(gen.x("my work")).isEqualTo("a post");
@@ -62,7 +65,7 @@ class DraftGeneratorTest {
               Thread.sleep(200);
               return "a post";
             });
-    DraftGenerator gen = new DraftGenerator(builder);
+    DraftGenerator gen = new DraftGenerator(builder, guard);
     long start = System.nanoTime();
     gen.generateAll("my work", "s");
     long millis = (System.nanoTime() - start) / 1_000_000;

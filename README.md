@@ -58,6 +58,19 @@ keeps text whole. The v1 bug behind the mysteriously bad drafts.
 | `spring.ai.openai.chat.options.model` | `meta/muse-glimmer` | Any served model id |
 | `spring.ai.openai.chat.options.max-completion-tokens` | `2000` | Reasoning models think first, budget room |
 | `spring.ai.openai.chat.options.temperature` | `0.7` | Greedy decoding latches onto misreadings |
+| `spring.ai.openai.max-retries` | `0` | SDK retry is off, Resilience4j owns the retry |
+| `content-helper.model.timeout` | `30s` | Max wall clock for one model call |
+| `content-helper.model.retry-attempts` | `3` | Total attempts per call, including the first |
+| `content-helper.model.retry-delay` | `500ms` | Fixed backoff between attempts |
+
+Every model call is wrapped by `ModelGuard`, which bounds it with a
+timeout and retries it a bounded number of times with a fixed backoff
+(Resilience4j `TimeLimiter` plus `Retry`). A delay or an error therefore
+ends in a retry, then the fallback, in bounded time. The OpenAI SDK has
+its own retry, so it is turned off here; two layers stacked multiplies
+the attempts instead of adding them, and the SDK timeout did not fire for
+a slow but connected response in testing. The fallback is the existing
+behaviour: exit zero with canned drafts and the cause logged.
 
 When the model is unreachable the command still exits zero with canned
 drafts and logs the cause. CI relies on this: `mvnw verify` runs with
