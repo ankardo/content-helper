@@ -11,6 +11,8 @@ import com.contenthelper.blog.BlogRepo;
 import com.contenthelper.draft.DraftTemplates;
 import com.contenthelper.draft.DraftWriter;
 import com.contenthelper.git.GitLogReader;
+import com.contenthelper.observe.RunMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -21,7 +23,12 @@ class DraftCommandsTest {
 
   private DraftCommands canned() {
     return new DraftCommands(
-        new DraftTemplates(), new DraftWriter(), new GitLogReader(), null, new BlogRepo());
+        new DraftTemplates(),
+        new DraftWriter(),
+        new GitLogReader(),
+        null,
+        new BlogRepo(),
+        new RunMetrics(new SimpleMeterRegistry()));
   }
 
   private DraftCommands wired(String reply) {
@@ -34,7 +41,8 @@ class DraftCommandsTest {
         new DraftWriter(),
         new GitLogReader(),
         new DraftGenerator(builder),
-        new BlogRepo());
+        new BlogRepo(),
+        new RunMetrics(new SimpleMeterRegistry()));
   }
 
   private Path blogRepo(Path base) throws Exception {
@@ -101,9 +109,61 @@ class DraftCommandsTest {
             new DraftWriter(),
             new GitLogReader(),
             new DraftGenerator(builder),
-            new BlogRepo());
+            new BlogRepo(),
+            new RunMetrics(new SimpleMeterRegistry()));
     String out = commands.draft("Shipped it.", null, null, ".", base.toString(), true);
     assertThat(out).contains("canned drafts");
+  }
+
+  @Test
+  void recordsRunMetrics(@TempDir Path base) throws Exception {
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    DraftCommands commands =
+        new DraftCommands(
+            new DraftTemplates(),
+            new DraftWriter(),
+            new GitLogReader(),
+            null,
+            new BlogRepo(),
+            new RunMetrics(registry));
+    commands.draft("Shipped it.", null, null, ".", base.toString(), false);
+    assertThat(
+            registry
+                .get("content_helper.runs")
+                .tag("command", "draft")
+                .tag("mode", "canned")
+                .counter()
+                .count())
+        .isEqualTo(1.0);
+    assertThat(registry.get("content_helper.run.duration").tag("command", "draft").timer().count())
+        .isEqualTo(1);
+    assertThat(registry.find("content_helper.fallbacks").counter()).isNull();
+  }
+
+  @Test
+  void recordsFallbackMetric(@TempDir Path base) throws Exception {
+    SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    ChatClient.Builder builder = mock(ChatClient.Builder.class);
+    ChatClient chat = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+    when(builder.build()).thenReturn(chat);
+    when(chat.prompt().system(anyString()).user(anyString()).call())
+        .thenThrow(new RuntimeException("down"));
+    DraftCommands commands =
+        new DraftCommands(
+            new DraftTemplates(),
+            new DraftWriter(),
+            new GitLogReader(),
+            new DraftGenerator(builder),
+            new BlogRepo(),
+            new RunMetrics(registry));
+    commands.draft("Shipped it.", null, null, ".", base.toString(), true);
+    assertThat(
+            registry
+                .get("content_helper.fallbacks")
+                .tag("command", "draft")
+                .counter()
+                .count())
+        .isEqualTo(1.0);
   }
 
   @Test
