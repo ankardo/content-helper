@@ -10,3 +10,4 @@ numbered in the order they were made.
 - [4. Blog handoff through a pending area](0004-blog-handoff-pending-area.md)
 - [5. One retry owner: Resilience4j over Spring Retry](0005-model-resilience.md)
 - [6. Vulnerability scan: OSV-Scanner over OWASP dependency-check](0006-vulnerability-scan.md)
+- [7. Container image, and why the native image is dropped](0007-container-and-native.md)
