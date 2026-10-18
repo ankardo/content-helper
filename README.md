@@ -206,6 +206,24 @@ fails on any of them:
   on 2026-10-18 flagged 14 advisories in jackson-core and jackson-databind
   2.21.5 and 3.1.5, all with published fixes.
 
+## Container
+
+Build and run with no local Java:
+
+```bash
+docker build -t content-helper .
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD/work:/work" content-helper \
+  draft --notes-file /work/notes.txt --out /work/drafts \
+  --ai=false --spring.shell.interactive.enabled=false
+```
+
+The image is a multi-stage build (Maven wrapper on a JDK, run on a slim
+JRE) and runs as a non-root user. To use a model on the host, reach it
+with `--network host` (Linux) or a `host.docker.internal` base URL, since
+`localhost` inside the container is the container. A native image is not
+shipped; see [ADR 7](docs/adr/0007-container-and-native.md) for why.
+
 ## Docs
 
 - [Architecture Decision Records](docs/adr/): why the model, the input
