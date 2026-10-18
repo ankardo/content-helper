@@ -10,17 +10,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class GitLogReader {
 
-  public List<String> readLog(Path repo, String range) throws IOException, InterruptedException {
-    Process process =
-        new ProcessBuilder("git", "log", "--format=%h %s", range)
-            .directory(repo.toFile())
-            .redirectErrorStream(true)
-            .start();
-    String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    int code = process.waitFor();
-    if (code != 0) {
-      throw new IllegalStateException("git log failed in " + repo + ": " + output.trim());
+    public List<String> readLog(Path repo, String range) throws IOException, InterruptedException {
+        Process process = new ProcessBuilder("git", "log", "--format=%h %s", range)
+                .directory(repo.toFile())
+                .redirectErrorStream(true)
+                .start();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        int code = process.waitFor();
+        if (code != 0) {
+            throw new IllegalStateException("git log failed in " + repo + ": " + output.trim());
+        }
+        return output.lines().filter(line -> !line.isBlank()).toList();
     }
-    return output.lines().filter(line -> !line.isBlank()).toList();
-  }
 }

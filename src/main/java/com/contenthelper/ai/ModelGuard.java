@@ -21,35 +21,34 @@ import org.springframework.stereotype.Component;
 @Component
 public class ModelGuard {
 
-  private final TimeLimiter timeLimiter;
-  private final Retry retry;
-  private final ExecutorService executor;
+    private final TimeLimiter timeLimiter;
+    private final Retry retry;
+    private final ExecutorService executor;
 
-  public ModelGuard(
-      @Value("${content-helper.model.timeout:30s}") Duration timeout,
-      @Value("${content-helper.model.retry-attempts:3}") int attempts,
-      @Value("${content-helper.model.retry-delay:500ms}") Duration delay) {
-    this.timeLimiter =
-        TimeLimiter.of(
-            TimeLimiterConfig.custom()
+    public ModelGuard(
+            @Value("${content-helper.model.timeout:30s}") Duration timeout,
+            @Value("${content-helper.model.retry-attempts:3}") int attempts,
+            @Value("${content-helper.model.retry-delay:500ms}") Duration delay) {
+        this.timeLimiter = TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(timeout)
                 .cancelRunningFuture(true)
                 .build());
-    this.retry =
-        Retry.of(
-            "model",
-            RetryConfig.custom().maxAttempts(Math.max(1, attempts)).waitDuration(delay).build());
-    this.executor = Executors.newVirtualThreadPerTaskExecutor();
-  }
+        this.retry = Retry.of(
+                "model",
+                RetryConfig.custom()
+                        .maxAttempts(Math.max(1, attempts))
+                        .waitDuration(delay)
+                        .build());
+        this.executor = Executors.newVirtualThreadPerTaskExecutor();
+    }
 
-  /** Runs one bounded, retried model call. Throws when the timeout or the retries are exhausted. */
-  public <T> T call(Callable<T> action) throws Exception {
-    return retry.executeCallable(
-        () -> timeLimiter.executeFutureSupplier(() -> executor.submit(action)));
-  }
+    /** Runs one bounded, retried model call. Throws when the timeout or the retries are exhausted. */
+    public <T> T call(Callable<T> action) throws Exception {
+        return retry.executeCallable(() -> timeLimiter.executeFutureSupplier(() -> executor.submit(action)));
+    }
 
-  @PreDestroy
-  void shutdown() {
-    executor.shutdownNow();
-  }
+    @PreDestroy
+    void shutdown() {
+        executor.shutdownNow();
+    }
 }

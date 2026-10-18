@@ -8,19 +8,18 @@ import org.springframework.stereotype.Service;
 @Service
 public class RunMetrics {
 
-  private final MeterRegistry registry;
+    private final MeterRegistry registry;
 
-  public RunMetrics(MeterRegistry registry) {
-    this.registry = registry;
-  }
-
-  public void run(String command, String mode, long millis, boolean fallback) {
-    registry.counter("content_helper.runs", "command", command, "mode", mode).increment();
-    registry
-        .timer("content_helper.run.duration", "command", command)
-        .record(millis, TimeUnit.MILLISECONDS);
-    if (fallback) {
-      registry.counter("content_helper.fallbacks", "command", command).increment();
+    public RunMetrics(MeterRegistry registry) {
+        this.registry = registry;
     }
-  }
+
+    public void run(String command, String mode, long millis, boolean fallback) {
+        registry.counter("content_helper.runs", "command", command, "mode", mode)
+                .increment();
+        registry.timer("content_helper.run.duration", "command", command).record(millis, TimeUnit.MILLISECONDS);
+        if (fallback) {
+            registry.counter("content_helper.fallbacks", "command", command).increment();
+        }
+    }
 }
