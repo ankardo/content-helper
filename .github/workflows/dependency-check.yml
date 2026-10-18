@@ -1,6 +1,8 @@
 name: dependency-check
 
 on:
+  push:
+    branches: [feat/15-supply-chain]
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
