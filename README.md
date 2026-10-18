@@ -114,6 +114,36 @@ The notes body starts here and keeps every sentence.
 `--title`, `--description`, `--tags`, `--slug` still work for single
 tokens; the header wins for anything with spaces.
 
+## Observability
+
+Each run records Micrometer metrics (`content_helper.runs`,
+`content_helper.run.duration`, `content_helper.fallbacks`) and logs one
+structured line:
+
+```
+run command=draft mode=ai duration_ms=8123 outputs=3 fallback=false
+```
+
+Spring AI observes the model calls, so traces carry `gen_ai.*` spans,
+and actuator is on the classpath. For machine-readable logs, add the
+`json` profile (ECS on the console):
+
+```bash
+java -jar ... --spring.profiles.active=json
+```
+
+OpenTelemetry export is off by default so the normal build and CI stay
+lean. To turn it on, build with the `otel` Maven profile and run with
+its Spring profile; metrics and traces go to an OTLP endpoint on
+`localhost:4318`.
+
+```bash
+./mvnw -B -Potel -DskipTests package
+java -jar target/content-helper-0.0.1-SNAPSHOT.jar \
+  draft --notes-file notes.txt --out drafts \
+  --spring.profiles.active=otel \
+  --spring.shell.interactive.enabled=false
+```
 
 ## Tests
 

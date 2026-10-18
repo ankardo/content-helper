@@ -5,6 +5,7 @@ import com.contenthelper.blog.BlogRepo;
 import com.contenthelper.draft.DraftTemplates;
 import com.contenthelper.draft.DraftWriter;
 import com.contenthelper.git.GitLogReader;
+import com.contenthelper.observe.RunMetrics;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -32,18 +33,21 @@ public class DraftCommands {
   private final GitLogReader git;
   private final DraftGenerator generator;
   private final BlogRepo repo;
+  private final RunMetrics metrics;
 
   public DraftCommands(
       DraftTemplates templates,
       DraftWriter writer,
       GitLogReader git,
       DraftGenerator generator,
-      BlogRepo repo) {
+      BlogRepo repo,
+      RunMetrics metrics) {
     this.templates = templates;
     this.writer = writer;
     this.git = git;
     this.generator = generator;
     this.repo = repo;
+    this.metrics = metrics;
   }
 
   @Command(
@@ -56,6 +60,7 @@ public class DraftCommands {
       @Option(longName = "dir", defaultValue = ".") String dir,
       @Option(longName = "out", defaultValue = "drafts") String out,
       @Option(longName = "ai", defaultValue = "true") boolean ai) throws Exception {
+    long start = System.nanoTime();
     Source input = readSource(notes, notesFile, range, dir);
     if (input.error() != null) {
       return input.error();
@@ -88,6 +93,8 @@ public class DraftCommands {
       blog = templates.blog(source, slug);
     }
     List<Path> written = writer.write(Path.of(out), slug, linkedin, x, blog);
+    boolean fallback = !note.isBlank();
+    record("draft", ai && !fallback, written.size(), start, fallback);
     return "Wrote " + written.size() + " drafts to " + out + "/" + slug + note;
   }
 
@@ -106,6 +113,7 @@ public class DraftCommands {
       @Option(longName = "tags", defaultValue = "") String tags,
       @Option(longName = "slug", defaultValue = "") String slug,
       @Option(longName = "ai", defaultValue = "true") boolean ai) throws Exception {
+    long start = System.nanoTime();
     Source input = readSource(notes, notesFile, range, dir);
     if (input.error() != null) {
       return input.error();
@@ -145,6 +153,8 @@ public class DraftCommands {
         templates.blogPost(theTitle, theDescription, LocalDate.now(), tagList(tagsValue), body);
     try {
       Path path = repo.writePending(blogRepo, theSlug, content);
+      boolean fallback = !note.isBlank();
+      record("blog", ai && !fallback, 1, start, fallback);
       return "Pending: "
           + path
           + note
@@ -273,6 +283,19 @@ public class DraftCommands {
       return value.substring(1, value.length() - 1);
     }
     return value;
+  }
+
+  private void record(String command, boolean ai, int outputs, long start, boolean fallback) {
+    String mode = ai ? "ai" : "canned";
+    long millis = (System.nanoTime() - start) / 1_000_000;
+    metrics.run(command, mode, millis, fallback);
+    log.info(
+        "run command={} mode={} duration_ms={} outputs={} fallback={}",
+        command,
+        mode,
+        millis,
+        outputs,
+        fallback);
   }
 
   private static List<String> tagList(String tags) {
