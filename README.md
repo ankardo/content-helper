@@ -167,8 +167,11 @@ java -jar target/content-helper-0.0.1-SNAPSHOT.jar \
 ```
 
 Unit tests for writer, templates, generator (mocked `ChatClient`) and
-shell wiring, plus the Boot context test. CI runs `mvnw verify` on
-every push and pull request.
+shell wiring, plus the Boot context test. Two mock-server tests run the
+real HTTP path against a local fake model, so neither needs a live one:
+`ModelResilienceTest` (timeout, retry, fallback) and `WireContractTest`
+(the outgoing request shape plus the non-200 and malformed-body fallback
+paths). CI runs `mvnw verify` on every push and pull request.
 
 ## License
 
