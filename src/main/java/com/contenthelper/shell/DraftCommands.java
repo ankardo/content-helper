@@ -77,9 +77,10 @@ public class DraftCommands {
     String note = "";
     if (ai) {
       try {
-        linkedin = generator.linkedin(source);
-        x = generator.x(source);
-        blog = generator.blog(source, slug);
+        DraftGenerator.Drafts drafts = generator.generateAll(source, slug);
+        linkedin = drafts.linkedin();
+        x = drafts.x();
+        blog = drafts.blog();
       } catch (Exception e) {
         log.warn("AI generation failed, falling back to canned drafts", e);
         note = " (model unreachable, canned drafts)";

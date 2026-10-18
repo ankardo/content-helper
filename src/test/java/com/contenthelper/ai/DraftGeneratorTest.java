@@ -7,6 +7,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 
@@ -32,5 +33,39 @@ class DraftGeneratorTest {
   void blankReplyFails() {
     DraftGenerator gen = generator("  ");
     assertThatThrownBy(() -> gen.linkedin("my work")).isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void generateAllReturnsTheThreeDrafts() throws Exception {
+    DraftGenerator gen = generator("a post");
+    DraftGenerator.Drafts drafts = gen.generateAll("my work", "s");
+    assertThat(drafts.linkedin()).isEqualTo("a post");
+    assertThat(drafts.x()).isEqualTo("a post");
+    assertThat(drafts.blog()).isEqualTo("a post");
+  }
+
+  @Test
+  void generateAllPropagatesFailure() {
+    DraftGenerator gen = generator("  ");
+    assertThatThrownBy(() -> gen.generateAll("my work", "s"))
+        .isInstanceOf(ExecutionException.class);
+  }
+
+  @Test
+  void generateAllRunsTheCallsConcurrently() throws Exception {
+    ChatClient.Builder builder = mock(ChatClient.Builder.class);
+    ChatClient chat = mock(ChatClient.class, RETURNS_DEEP_STUBS);
+    when(builder.build()).thenReturn(chat);
+    when(chat.prompt().system(anyString()).user(anyString()).call().content())
+        .thenAnswer(
+            invocation -> {
+              Thread.sleep(200);
+              return "a post";
+            });
+    DraftGenerator gen = new DraftGenerator(builder);
+    long start = System.nanoTime();
+    gen.generateAll("my work", "s");
+    long millis = (System.nanoTime() - start) / 1_000_000;
+    assertThat(millis).isLessThan(450);
   }
 }
