@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.contenthelper.ai.DraftGenerator;
+import com.contenthelper.ai.ModelGuard;
 import com.contenthelper.blog.BlogRepo;
 import com.contenthelper.draft.DraftTemplates;
 import com.contenthelper.draft.DraftWriter;
@@ -15,11 +16,14 @@ import com.contenthelper.observe.RunMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.ai.chat.client.ChatClient;
 
 class DraftCommandsTest {
+
+  private final ModelGuard guard = new ModelGuard(Duration.ofSeconds(30), 1, Duration.ZERO);
 
   private DraftCommands canned() {
     return new DraftCommands(
@@ -40,7 +44,7 @@ class DraftCommandsTest {
         new DraftTemplates(),
         new DraftWriter(),
         new GitLogReader(),
-        new DraftGenerator(builder),
+        new DraftGenerator(builder, guard),
         new BlogRepo(),
         new RunMetrics(new SimpleMeterRegistry()));
   }
@@ -108,7 +112,7 @@ class DraftCommandsTest {
             new DraftTemplates(),
             new DraftWriter(),
             new GitLogReader(),
-            new DraftGenerator(builder),
+            new DraftGenerator(builder, guard),
             new BlogRepo(),
             new RunMetrics(new SimpleMeterRegistry()));
     String out = commands.draft("Shipped it.", null, null, ".", base.toString(), true);
@@ -153,7 +157,7 @@ class DraftCommandsTest {
             new DraftTemplates(),
             new DraftWriter(),
             new GitLogReader(),
-            new DraftGenerator(builder),
+            new DraftGenerator(builder, guard),
             new BlogRepo(),
             new RunMetrics(registry));
     commands.draft("Shipped it.", null, null, ".", base.toString(), true);
