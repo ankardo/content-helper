@@ -6,13 +6,14 @@ import com.contenthelper.draft.DraftTemplates;
 import com.contenthelper.draft.DraftWriter;
 import com.contenthelper.git.GitLogReader;
 import com.contenthelper.observe.RunMetrics;
-import java.nio.file.Files;
+import com.contenthelper.observe.RunRecorder;
+import com.contenthelper.source.NoteSource;
+import com.contenthelper.source.NoteSourceReader;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -25,7 +26,6 @@ import org.springframework.stereotype.Component;
 public class DraftCommands {
 
     private static final Logger log = LoggerFactory.getLogger(DraftCommands.class);
-    private static final String USAGE = "Pass --notes-file <file> (sentences), --notes <words> or --range <git range>";
 
     private final DraftTemplates templates;
     private final DraftWriter writer;
@@ -61,12 +61,12 @@ public class DraftCommands {
             @Option(longName = "ai", defaultValue = "true") boolean ai)
             throws Exception {
         long start = System.nanoTime();
-        Source input = readSource(notes, notesFile, range, dir);
+        NoteSource input = NoteSourceReader.read(notes, notesFile, range, dir, git);
         if (input.error() != null) {
             return input.error();
         }
         if (input.text() == null) {
-            return USAGE;
+            return NoteSourceReader.USAGE;
         }
         String source = input.text();
 
@@ -95,7 +95,7 @@ public class DraftCommands {
         }
         List<Path> written = writer.write(Path.of(out), slug, linkedin, x, blog);
         boolean fallback = !note.isBlank();
-        record("draft", ai && !fallback, written.size(), start, fallback);
+        RunRecorder.record(metrics, "draft", ai && !fallback, written.size(), start, fallback);
         return "Wrote " + written.size() + " drafts to " + out + "/" + slug + note;
     }
 
@@ -115,12 +115,12 @@ public class DraftCommands {
             @Option(longName = "ai", defaultValue = "true") boolean ai)
             throws Exception {
         long start = System.nanoTime();
-        Source input = readSource(notes, notesFile, range, dir);
+        NoteSource input = NoteSourceReader.read(notes, notesFile, range, dir, git);
         if (input.error() != null) {
             return input.error();
         }
         if (input.text() == null) {
-            return USAGE;
+            return NoteSourceReader.USAGE;
         }
         if (into == null || into.isBlank()) {
             return "Pass --into <blog repo> (the Astro project holding src/content)";
@@ -131,7 +131,7 @@ public class DraftCommands {
         }
         String source = input.text();
         Map<String, String> meta = input.meta();
-        String theTitle = firstNonBlank(title, meta.get("title"), firstLine(source));
+        String theTitle = firstNonBlank(title, meta.get("title"), NoteSourceReader.firstLine(source));
         String theSlug = firstNonBlank(slug, meta.get("slug"));
         theSlug = theSlug.isEmpty() ? slugify(theTitle) : theSlug;
 
@@ -148,13 +148,13 @@ public class DraftCommands {
         } else {
             body = templates.blogBody(source);
         }
-        String theDescription = firstNonBlank(description, meta.get("description"), firstLine(body));
+        String theDescription = firstNonBlank(description, meta.get("description"), NoteSourceReader.firstLine(body));
         String tagsValue = firstNonBlank(tags, meta.get("tags"));
         String content = templates.blogPost(theTitle, theDescription, LocalDate.now(), tagList(tagsValue), body);
         try {
             Path path = repo.writePending(blogRepo, theSlug, content);
             boolean fallback = !note.isBlank();
-            record("blog", ai && !fallback, 1, start, fallback);
+            RunRecorder.record(metrics, "blog", ai && !fallback, 1, start, fallback);
             return "Pending: "
                     + path
                     + note
@@ -221,85 +221,6 @@ public class DraftCommands {
         }
     }
 
-    private Source readSource(String notes, String notesFile, String range, String dir) throws Exception {
-        if (!isBlank(notesFile)) {
-            // Full sentences: the shell splits --notes and --title on spaces, a file keeps them whole.
-            String text;
-            try {
-                text = Files.readString(Path.of(notesFile)).trim();
-            } catch (Exception e) {
-                return new Source(null, "Cannot read notes file " + notesFile + ": " + e.getMessage(), Map.of());
-            }
-            if (text.isBlank()) {
-                return new Source(null, "Notes file " + notesFile + " is empty", Map.of());
-            }
-            return splitMeta(text);
-        }
-        if (!isBlank(notes)) {
-            return new Source(notes, null, Map.of());
-        }
-        if (!isBlank(range)) {
-            List<String> lines = git.readLog(Path.of(dir), range);
-            return lines.isEmpty()
-                    ? new Source(null, "No commits in range " + range, Map.of())
-                    : new Source(String.join("\n", lines), null, Map.of());
-        }
-        return new Source(null, null, Map.of());
-    }
-
-    /**
-     * A notes file may open with a "---" block of metadata (title, description, tags, slug),
-     * the reliable path around the shell splitting option values on whitespace.
-     */
-    private static Source splitMeta(String text) {
-        String[] lines = text.split("\n", -1);
-        if (lines.length == 0 || !lines[0].trim().equals("---")) {
-            return new Source(text, null, Map.of());
-        }
-        int end = -1;
-        for (int i = 1; i < lines.length; i++) {
-            if (lines[i].trim().equals("---")) {
-                end = i;
-                break;
-            }
-        }
-        if (end < 0) {
-            return new Source(text, null, Map.of());
-        }
-        Map<String, String> meta = new LinkedHashMap<>();
-        for (int i = 1; i < end; i++) {
-            int colon = lines[i].indexOf(':');
-            if (colon > 0) {
-                meta.put(
-                        lines[i].substring(0, colon).trim().toLowerCase(),
-                        unquote(lines[i].substring(colon + 1).trim()));
-            }
-        }
-        String body = String.join("\n", Arrays.copyOfRange(lines, end + 1, lines.length))
-                .trim();
-        return new Source(body, null, meta);
-    }
-
-    private static String unquote(String value) {
-        if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
-            return value.substring(1, value.length() - 1);
-        }
-        return value;
-    }
-
-    private void record(String command, boolean ai, int outputs, long start, boolean fallback) {
-        String mode = ai ? "ai" : "canned";
-        long millis = (System.nanoTime() - start) / 1_000_000;
-        metrics.run(command, mode, millis, fallback);
-        log.info(
-                "run command={} mode={} duration_ms={} outputs={} fallback={}",
-                command,
-                mode,
-                millis,
-                outputs,
-                fallback);
-    }
-
     private static List<String> tagList(String tags) {
         if (isBlank(tags)) {
             return List.of();
@@ -323,15 +244,6 @@ public class DraftCommands {
         return slug.isBlank() ? "post" : slug;
     }
 
-    private static String firstLine(String text) {
-        return Arrays.stream(text.split("\n"))
-                .map(String::trim)
-                .map(line -> line.replaceAll("^#+\\s*", ""))
-                .filter(line -> !line.isBlank())
-                .findFirst()
-                .orElse("");
-    }
-
     private static String firstNonBlank(String... values) {
         for (String value : values) {
             if (!isBlank(value)) {
@@ -344,6 +256,4 @@ public class DraftCommands {
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
-
-    private record Source(String text, String error, Map<String, String> meta) {}
 }
