@@ -78,9 +78,10 @@ public class CarouselCommands {
         } else {
             plan = templates.plan(source);
         }
-        List<Path> written = writer.writePlan(Path.of(out), slug, plan);
+        List<Path> written = writer.writeAll(Path.of(out), slug, plan);
         boolean fallback = !note.isBlank();
         RunRecorder.record(metrics, "carousel", ai && !fallback, written.size(), start, fallback);
-        return "Wrote a " + plan.slides().size() + " slide plan to " + out + "/" + slug + note;
+        return "Wrote a " + plan.slides().size() + " slide carousel to " + out + "/" + slug + " (8 PNGs, carousel.pdf)"
+                + note;
     }
 }
