@@ -24,6 +24,15 @@ final class SlidePainter {
     private static final Color ACCENT = new Color(0xFF7A45);
     private static final Color CARD = new Color(0x161618);
     private static final Color CARD_BAR = new Color(0x232326);
+    private static final Color LIGHT_RED = new Color(0xFF5F57);
+    private static final Color LIGHT_YELLOW = new Color(0xFEBC2E);
+    private static final Color LIGHT_GREEN = new Color(0x28C840);
+    private static final Color CODE_PLAIN = new Color(0xD8D8D2);
+    private static final Color CODE_KEYWORD = new Color(0xC792EA);
+    private static final Color CODE_STRING = new Color(0xA5E075);
+    private static final Color CODE_COMMENT = new Color(0x6F6F76);
+    private static final Color CODE_NUMBER = new Color(0xF2C97D);
+    private static final Color CODE_TYPE = new Color(0x7FD1E8);
 
     private final Graphics2D g;
 
@@ -109,8 +118,44 @@ final class SlidePainter {
             top = paragraph(slide.body(), MARGIN, top, CONTENT_WIDTH, 54, 14, 12, MUTED) + 12;
         }
         float cardTop = Math.max(top, 190);
-        float cardHeight = HEIGHT - 84 - cardTop;
         float cardWidth = CONTENT_WIDTH;
+        float maxCardHeight = HEIGHT - 84 - cardTop;
+
+        List<List<CodeTokenizer.Token>> lines = CodeTokenizer.lines(slide.code(), slide.language());
+        int fontSize = 12;
+        Font codeFont = mono(Font.PLAIN, fontSize);
+        FontMetrics metrics = g.getFontMetrics(codeFont);
+        float widest = 0;
+        for (List<CodeTokenizer.Token> line : lines) {
+            widest = Math.max(widest, lineWidth(line, metrics));
+        }
+        float codeWidth = cardWidth - 36;
+        if (widest > codeWidth) {
+            fontSize = Math.max(8, (int) Math.floor(fontSize * codeWidth / widest));
+            codeFont = mono(Font.PLAIN, fontSize);
+            metrics = g.getFontMetrics(codeFont);
+        }
+        float lineHeight = fontSize * 1.45f;
+        int visible = Math.max(1, (int) ((maxCardHeight - 62) / lineHeight));
+        if (lines.size() > visible) {
+            lines = new ArrayList<>(lines.subList(0, visible));
+        }
+        float desired = 30 + 18 + lines.size() * lineHeight + 16;
+        float cardHeight = Math.min(maxCardHeight, Math.max(150, desired));
+
+        drawCard(cardTop, cardWidth, cardHeight, slide.filename());
+
+        float x = MARGIN + 18;
+        float right = MARGIN + cardWidth - 18;
+        float y = cardTop + 30 + fontSize + 8;
+        g.setFont(codeFont);
+        for (List<CodeTokenizer.Token> line : lines) {
+            drawCodeLine(line, x, right, y, metrics);
+            y += lineHeight;
+        }
+    }
+
+    private void drawCard(float cardTop, float cardWidth, float cardHeight, String filename) {
         RoundRectangle2D card = new RoundRectangle2D.Float(MARGIN, cardTop, cardWidth, cardHeight, 16, 16);
         g.setColor(CARD);
         g.fill(card);
@@ -118,27 +163,62 @@ final class SlidePainter {
         g.fill(new RoundRectangle2D.Float(MARGIN, cardTop, cardWidth, 30, 16, 16));
         g.fillRect((int) MARGIN, (int) cardTop + 15, (int) cardWidth, 15);
 
-        String name = slide.filename().isBlank() ? "snippet" : slide.filename();
+        g.setColor(LIGHT_RED);
+        g.fillOval((int) MARGIN + 14, (int) cardTop + 11, 8, 8);
+        g.setColor(LIGHT_YELLOW);
+        g.fillOval((int) MARGIN + 28, (int) cardTop + 11, 8, 8);
+        g.setColor(LIGHT_GREEN);
+        g.fillOval((int) MARGIN + 42, (int) cardTop + 11, 8, 8);
+
+        String name = filename.isBlank() ? "snippet" : filename;
         g.setFont(mono(Font.PLAIN, 10));
         g.setColor(MUTED);
-        g.drawString(SlideText.fit(name, g.getFontMetrics(), cardWidth - 32), MARGIN + 16, cardTop + 20);
+        String fitted = SlideText.fit(name, g.getFontMetrics(), cardWidth - 130);
+        float nameX = MARGIN + (cardWidth - g.getFontMetrics().stringWidth(fitted)) / 2;
+        g.drawString(fitted, nameX, cardTop + 20);
+    }
 
-        Font codeFont = mono(Font.PLAIN, 12);
-        g.setFont(codeFont);
-        g.setColor(new Color(0xD8D8D2));
-        FontMetrics metrics = g.getFontMetrics(codeFont);
-        float lineHeight = 17;
-        float x = MARGIN + 18;
-        float y = cardTop + 30 + 22;
-        float limit = cardTop + cardHeight - 18;
-        List<String> lines = slide.code().lines().toList();
-        for (int i = 0; i < lines.size(); i++) {
-            if (y + lineHeight > limit) {
+    private void drawCodeLine(List<CodeTokenizer.Token> line, float x, float right, float y, FontMetrics metrics) {
+        float cursor = x;
+        for (CodeTokenizer.Token token : line) {
+            String text = expandTabs(token.text());
+            String draw = text;
+            if (cursor + metrics.stringWidth(draw) > right) {
+                draw = SlideText.fit(draw, metrics, right - cursor);
+            }
+            if (draw.isEmpty()) {
                 break;
             }
-            g.drawString(SlideText.fit(lines.get(i), metrics, cardWidth - 36), x, y);
-            y += lineHeight;
+            g.setColor(codeColor(token.type()));
+            g.drawString(draw, cursor, y);
+            cursor += metrics.stringWidth(draw);
+            if (cursor >= right) {
+                break;
+            }
         }
+    }
+
+    private static float lineWidth(List<CodeTokenizer.Token> line, FontMetrics metrics) {
+        float width = 0;
+        for (CodeTokenizer.Token token : line) {
+            width += metrics.stringWidth(expandTabs(token.text()));
+        }
+        return width;
+    }
+
+    private static String expandTabs(String text) {
+        return text.replace("\t", "    ");
+    }
+
+    private static Color codeColor(CodeTokenizer.Type type) {
+        return switch (type) {
+            case KEYWORD -> CODE_KEYWORD;
+            case STRING -> CODE_STRING;
+            case COMMENT -> CODE_COMMENT;
+            case NUMBER, ANNOTATION -> CODE_NUMBER;
+            case TYPE, VARIABLE -> CODE_TYPE;
+            default -> CODE_PLAIN;
+        };
     }
 
     private void cta(CarouselSlide slide) {
