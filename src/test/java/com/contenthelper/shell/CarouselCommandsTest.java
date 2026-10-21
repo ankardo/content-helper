@@ -68,7 +68,7 @@ class CarouselCommandsTest {
     @Test
     void cannedWritesPlanAndCaption(@TempDir Path base) throws Exception {
         String out = canned(new SimpleMeterRegistry())
-                .carousel("First line\nSecond line", null, null, ".", base.toString(), false);
+                .carousel("First line\nSecond line", null, null, ".", base.toString(), false, 120, 2);
         assertThat(out).startsWith("Wrote a 8 slide carousel");
         List<Path> dirs;
         try (var paths = Files.list(base)) {
@@ -85,8 +85,8 @@ class CarouselCommandsTest {
 
     @Test
     void modelPlanIsUsedWhenItParses(@TempDir Path base) throws Exception {
-        String out =
-                wired(reply(), new SimpleMeterRegistry()).carousel("notes", null, null, ".", base.toString(), true);
+        String out = wired(reply(), new SimpleMeterRegistry())
+                .carousel("notes", null, null, ".", base.toString(), true, 120, 2);
         assertThat(out).startsWith("Wrote a 8 slide carousel");
         assertThat(out).doesNotContain("canned");
         try (var paths = Files.list(base)) {
@@ -107,20 +107,20 @@ class CarouselCommandsTest {
                 new CarouselWriter(new CarouselRenderer()),
                 new GitLogReader(),
                 new RunMetrics(new SimpleMeterRegistry()));
-        String out = commands.carousel("notes", null, null, ".", base.toString(), true);
+        String out = commands.carousel("notes", null, null, ".", base.toString(), true, 120, 2);
         assertThat(out).contains("canned plan");
     }
 
     @Test
     void missingInputReturnsUsage(@TempDir Path base) throws Exception {
-        String out = canned(new SimpleMeterRegistry()).carousel(null, null, null, ".", base.toString(), false);
+        String out = canned(new SimpleMeterRegistry()).carousel(null, null, null, ".", base.toString(), false, 120, 2);
         assertThat(out).contains("--notes");
     }
 
     @Test
     void recordsRunMetrics(@TempDir Path base) throws Exception {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
-        canned(registry).carousel("notes", null, null, ".", base.toString(), false);
+        canned(registry).carousel("notes", null, null, ".", base.toString(), false, 120, 2);
         assertThat(registry.get("content_helper.runs")
                         .tag("command", "carousel")
                         .tag("mode", "canned")

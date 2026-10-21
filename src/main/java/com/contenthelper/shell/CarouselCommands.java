@@ -10,6 +10,7 @@ import com.contenthelper.observe.RunRecorder;
 import com.contenthelper.source.NoteSource;
 import com.contenthelper.source.NoteSourceReader;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -52,7 +53,9 @@ public class CarouselCommands {
             @Option(longName = "range", defaultValue = "") String range,
             @Option(longName = "dir", defaultValue = ".") String dir,
             @Option(longName = "out", defaultValue = "carousels") String out,
-            @Option(longName = "ai", defaultValue = "true") boolean ai)
+            @Option(longName = "ai", defaultValue = "true") boolean ai,
+            @Option(longName = "timeout", defaultValue = "120") int timeoutSeconds,
+            @Option(longName = "attempts", defaultValue = "2") int attempts)
             throws Exception {
         long start = System.nanoTime();
         NoteSource input = NoteSourceReader.read(notes, notesFile, range, dir, git);
@@ -69,7 +72,7 @@ public class CarouselCommands {
         String note = "";
         if (ai) {
             try {
-                plan = generator.plan(source);
+                plan = generator.plan(source, Duration.ofSeconds(Math.max(1, timeoutSeconds)), Math.max(1, attempts));
             } catch (Exception e) {
                 log.warn("Carousel plan failed, falling back to canned", e);
                 note = " (model unreachable, canned plan)";

@@ -24,6 +24,7 @@ public class ModelGuard {
     private final TimeLimiter timeLimiter;
     private final Retry retry;
     private final ExecutorService executor;
+    private final Duration delay;
 
     public ModelGuard(
             @Value("${content-helper.model.timeout:30s}") Duration timeout,
@@ -40,11 +41,27 @@ public class ModelGuard {
                         .waitDuration(delay)
                         .build());
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
+        this.delay = delay;
     }
 
     /** Runs one bounded, retried model call. Throws when the timeout or the retries are exhausted. */
     public <T> T call(Callable<T> action) throws Exception {
         return retry.executeCallable(() -> timeLimiter.executeFutureSupplier(() -> executor.submit(action)));
+    }
+
+    /** One call with its own timeout and attempt count, for prompts that need longer than the default. */
+    public <T> T call(Callable<T> action, Duration timeout, int attempts) throws Exception {
+        if (timeout == null || attempts <= 0) {
+            return call(action);
+        }
+        TimeLimiter override = TimeLimiter.of(TimeLimiterConfig.custom()
+                .timeoutDuration(timeout)
+                .cancelRunningFuture(true)
+                .build());
+        Retry overrideRetry = Retry.of(
+                "model-override",
+                RetryConfig.custom().maxAttempts(attempts).waitDuration(delay).build());
+        return overrideRetry.executeCallable(() -> override.executeFutureSupplier(() -> executor.submit(action)));
     }
 
     @PreDestroy
