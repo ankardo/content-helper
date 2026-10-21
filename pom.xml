@@ -29,7 +29,7 @@
 	<properties>
 		<java.version>21</java.version>
 		<spring-ai.version>2.0.1</spring-ai.version>
-		<spring-shell.version>4.0.2</spring-shell.version>
+		<spring-shell.version>4.0.3</spring-shell.version>
 		<resilience4j.version>2.4.0</resilience4j.version>
 		<spotless.version>2.44.3</spotless.version>
 		<palantir-java-format.version>2.50.0</palantir-java-format.version>
