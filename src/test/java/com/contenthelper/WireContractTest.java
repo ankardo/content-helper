@@ -91,7 +91,7 @@ class WireContractTest {
         JsonNode body = JSON.readTree(request.getBody().readUtf8());
         assertThat(body.path("model").asText()).isEqualTo("meta/muse-glimmer");
         assertThat(body.path("temperature").asDouble()).isEqualTo(0.7);
-        assertThat(body.path("max_completion_tokens").asInt()).isEqualTo(2000);
+        assertThat(body.path("max_tokens").asInt()).isEqualTo(6000);
 
         JsonNode system = body.path("messages").get(0);
         assertThat(system.path("role").asText()).isEqualTo("system");

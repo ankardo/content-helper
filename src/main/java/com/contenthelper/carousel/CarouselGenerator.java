@@ -1,6 +1,7 @@
 package com.contenthelper.carousel;
 
 import com.contenthelper.ai.ModelGuard;
+import java.time.Duration;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
@@ -28,8 +29,12 @@ public class CarouselGenerator {
     }
 
     public CarouselPlan plan(String source) throws Exception {
+        return plan(source, null, 0);
+    }
+
+    public CarouselPlan plan(String source, Duration timeout, int attempts) throws Exception {
         String reply = guard.call(
-                () -> chat.prompt().system(ROLE).user(prompt(source)).call().content());
+                () -> chat.prompt().system(ROLE).user(prompt(source)).call().content(), timeout, attempts);
         if (reply == null || reply.isBlank()) {
             throw new IllegalStateException("Empty reply from model");
         }

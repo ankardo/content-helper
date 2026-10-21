@@ -47,6 +47,22 @@ Why `--notes-file`: non-interactive Spring Shell splits `--notes`
 values on whitespace, so a sentence arrives as its first word. A file
 keeps text whole. The v1 bug behind the mysteriously bad drafts.
 
+## Carousel
+
+```bash
+java -jar target/content-helper-0.0.1-SNAPSHOT.jar \
+  carousel --notes-file notes.txt --out carousels \
+  --spring.shell.interactive.enabled=false
+```
+
+Writes `plan.json`, `caption.md`, `slide-01.png` and the rest, plus
+`carousel.pdf`. Upload the PDF to LinkedIn and the PNGs to X.
+
+| Option | Default | Notes |
+| --- | --- | --- |
+| `--timeout` | `120` | Seconds per model call; reasoning models need room |
+| `--attempts` | `2` | Model calls before the canned plan |
+
 ## Configuration
 
 `src/main/resources/application.properties`:
@@ -56,7 +72,9 @@ keeps text whole. The v1 bug behind the mysteriously bad drafts.
 | `spring.ai.openai.base-url` | `http://localhost:1234/v1` | LM Studio server |
 | `spring.ai.openai.api-key` | `noop` | LM Studio takes anything |
 | `spring.ai.openai.chat.options.model` | `meta/muse-glimmer` | Any served model id |
-| `spring.ai.openai.chat.options.max-completion-tokens` | `2000` | Reasoning models think first, budget room |
+| `spring.ai.openai.chat.options.max-tokens` | `6000` | Reasoning models think first, budget room |
+| `spring.ai.openai.timeout` | `180s` | HTTP read timeout; local reasoning is slow |
+| `spring.ai.openai.chat.options.timeout` | `180s` | Per request timeout |
 | `spring.ai.openai.chat.options.temperature` | `0.7` | Greedy decoding latches onto misreadings |
 | `spring.ai.openai.max-retries` | `0` | SDK retry is off, Resilience4j owns the retry |
 | `content-helper.model.timeout` | `30s` | Max wall clock for one model call |
