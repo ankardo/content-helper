@@ -8,6 +8,13 @@ final class CarouselText {
 
     private CarouselText() {}
 
+    static int wordCount(String value) {
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        return value.trim().split("\\s+").length;
+    }
+
     static String clampWords(String value, int maxWords) {
         if (value == null) {
             return "";

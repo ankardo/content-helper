@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.contenthelper.ai.ModelGuard;
 import com.contenthelper.carousel.CarouselGenerator;
 import com.contenthelper.carousel.CarouselParser;
+import com.contenthelper.carousel.CarouselRenderer;
 import com.contenthelper.carousel.CarouselTemplates;
 import com.contenthelper.carousel.CarouselWriter;
 import com.contenthelper.git.GitLogReader;
@@ -28,7 +29,11 @@ class CarouselCommandsTest {
 
     private CarouselCommands canned(SimpleMeterRegistry registry) {
         return new CarouselCommands(
-                new CarouselTemplates(), null, new CarouselWriter(), new GitLogReader(), new RunMetrics(registry));
+                new CarouselTemplates(),
+                null,
+                new CarouselWriter(new CarouselRenderer()),
+                new GitLogReader(),
+                new RunMetrics(registry));
     }
 
     private CarouselCommands wired(String reply, SimpleMeterRegistry registry) {
@@ -40,7 +45,7 @@ class CarouselCommandsTest {
         return new CarouselCommands(
                 new CarouselTemplates(),
                 new CarouselGenerator(builder, guard, new CarouselParser()),
-                new CarouselWriter(),
+                new CarouselWriter(new CarouselRenderer()),
                 new GitLogReader(),
                 new RunMetrics(registry));
     }
@@ -64,7 +69,7 @@ class CarouselCommandsTest {
     void cannedWritesPlanAndCaption(@TempDir Path base) throws Exception {
         String out = canned(new SimpleMeterRegistry())
                 .carousel("First line\nSecond line", null, null, ".", base.toString(), false);
-        assertThat(out).startsWith("Wrote a 8 slide plan");
+        assertThat(out).startsWith("Wrote a 8 slide carousel");
         List<Path> dirs;
         try (var paths = Files.list(base)) {
             dirs = paths.toList();
@@ -72,6 +77,9 @@ class CarouselCommandsTest {
         assertThat(dirs).hasSize(1);
         assertThat(dirs.get(0).resolve("plan.json")).exists();
         assertThat(dirs.get(0).resolve("caption.md")).exists();
+        assertThat(dirs.get(0).resolve("slide-01.png")).exists();
+        assertThat(dirs.get(0).resolve("slide-08.png")).exists();
+        assertThat(dirs.get(0).resolve("carousel.pdf")).exists();
         assertThat(Files.readString(dirs.get(0).resolve("plan.json"))).contains("\"slides\"");
     }
 
@@ -79,7 +87,7 @@ class CarouselCommandsTest {
     void modelPlanIsUsedWhenItParses(@TempDir Path base) throws Exception {
         String out =
                 wired(reply(), new SimpleMeterRegistry()).carousel("notes", null, null, ".", base.toString(), true);
-        assertThat(out).startsWith("Wrote a 8 slide plan");
+        assertThat(out).startsWith("Wrote a 8 slide carousel");
         assertThat(out).doesNotContain("canned");
         try (var paths = Files.list(base)) {
             Path dir = paths.toList().get(0);
@@ -96,7 +104,7 @@ class CarouselCommandsTest {
         CarouselCommands commands = new CarouselCommands(
                 new CarouselTemplates(),
                 new CarouselGenerator(builder, guard, new CarouselParser()),
-                new CarouselWriter(),
+                new CarouselWriter(new CarouselRenderer()),
                 new GitLogReader(),
                 new RunMetrics(new SimpleMeterRegistry()));
         String out = commands.carousel("notes", null, null, ".", base.toString(), true);
