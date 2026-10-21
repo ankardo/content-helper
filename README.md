@@ -63,6 +63,32 @@ Writes `plan.json`, `caption.md`, `slide-01.png` and the rest, plus
 | `--timeout` | `120` | Seconds per model call; reasoning models need room |
 | `--attempts` | `2` | Model calls before the canned plan |
 
+## Post advisor
+
+Run `post` before you generate anything. It reads the notes and says which shape fits, which command to run next, and when to publish.
+
+```bash
+java -jar target/content-helper-0.0.1-SNAPSHOT.jar \
+  post --notes-file notes.txt \
+  --spring.shell.interactive.enabled=false
+```
+
+```
+Best shape: text plus one image
+Type: personal story
+Why: First person narrative. A carousel would flatten it; a text post carries the story.
+Next: Run `draft` for the text. Attach one real screenshot.
+Window: Thu 22 Oct 2026, 10:00 America/New_York (14:00 UTC, 11:00 America/Sao_Paulo)
+```
+
+The rules are deterministic:
+
+- Guide, framework, comparison, build breakdown: carousel plus a short text hook.
+- Personal story: text plus one real image, never a carousel.
+- Window: next Tuesday to Thursday at 10:00 America/New_York, at least 24 hours out, shown in UTC and your local zone. US first, EU second.
+
+`post` only advises. It does not call the model or write files.
+
 ## Configuration
 
 `src/main/resources/application.properties`:

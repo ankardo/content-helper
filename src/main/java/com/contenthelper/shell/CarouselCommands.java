@@ -7,6 +7,9 @@ import com.contenthelper.carousel.CarouselWriter;
 import com.contenthelper.git.GitLogReader;
 import com.contenthelper.observe.RunMetrics;
 import com.contenthelper.observe.RunRecorder;
+import com.contenthelper.post.PostAdvice;
+import com.contenthelper.post.PostAdvisor;
+import com.contenthelper.post.PostType;
 import com.contenthelper.source.NoteSource;
 import com.contenthelper.source.NoteSourceReader;
 import java.nio.file.Path;
@@ -30,18 +33,21 @@ public class CarouselCommands {
     private final CarouselWriter writer;
     private final GitLogReader git;
     private final RunMetrics metrics;
+    private final PostAdvisor advisor;
 
     public CarouselCommands(
             CarouselTemplates templates,
             CarouselGenerator generator,
             CarouselWriter writer,
             GitLogReader git,
-            RunMetrics metrics) {
+            RunMetrics metrics,
+            PostAdvisor advisor) {
         this.templates = templates;
         this.generator = generator;
         this.writer = writer;
         this.git = git;
         this.metrics = metrics;
+        this.advisor = advisor;
     }
 
     @Command(
@@ -55,7 +61,8 @@ public class CarouselCommands {
             @Option(longName = "out", defaultValue = "carousels") String out,
             @Option(longName = "ai", defaultValue = "true") boolean ai,
             @Option(longName = "timeout", defaultValue = "120") int timeoutSeconds,
-            @Option(longName = "attempts", defaultValue = "2") int attempts)
+            @Option(longName = "attempts", defaultValue = "2") int attempts,
+            @Option(longName = "force", defaultValue = "false") boolean force)
             throws Exception {
         long start = System.nanoTime();
         NoteSource input = NoteSourceReader.read(notes, notesFile, range, dir, git);
@@ -66,6 +73,14 @@ public class CarouselCommands {
             return NoteSourceReader.USAGE;
         }
         String source = input.text();
+        PostAdvice advice = advisor.advise(source);
+        if (advice.type() == PostType.STORY && !force) {
+            return String.join(
+                    System.lineSeparator(),
+                    "These notes read as a personal story. A carousel would flatten them.",
+                    "Run `post` for the recommended shape, or `draft` for text plus one image.",
+                    "To build a carousel anyway, add --force.");
+        }
         String slug = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
 
         CarouselPlan plan;
