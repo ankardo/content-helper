@@ -45,7 +45,7 @@ class ArchitectureTest {
                 .layer("Shell")
                 .definedBy("..shell..")
                 .layer("Features")
-                .definedBy("..ai..", "..draft..", "..git..", "..blog..", "..observe..")
+                .definedBy("..ai..", "..draft..", "..git..", "..blog..", "..observe..", "..carousel..", "..source..")
                 .whereLayer("Shell")
                 .mayNotBeAccessedByAnyLayer()
                 .whereLayer("Features")
