@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,8 +53,10 @@ public class BlogRepo {
             return List.of();
         }
         try (var files = Files.list(dir)) {
-            return files.filter(p -> p.getFileName().toString().endsWith(".md"))
-                    .map(p -> p.getFileName().toString().replaceAll("\\.md$", ""))
+            return files.map(p -> Objects.requireNonNull(p.getFileName(), "pending entry")
+                            .toString())
+                    .filter(name -> name.endsWith(".md"))
+                    .map(name -> name.replaceAll("\\.md$", ""))
                     .sorted()
                     .toList();
         }

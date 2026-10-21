@@ -33,7 +33,7 @@
 		<resilience4j.version>2.4.0</resilience4j.version>
 		<spotless.version>2.44.3</spotless.version>
 		<palantir-java-format.version>2.50.0</palantir-java-format.version>
-		<spotbugs.version>4.8.6.6</spotbugs.version>
+		<spotbugs.version>4.10.5.0</spotbugs.version>
 		<jacoco.version>0.8.15</jacoco.version>
 		<archunit.version>1.5.1</archunit.version>
 		<cyclonedx.version>2.9.3</cyclonedx.version>
